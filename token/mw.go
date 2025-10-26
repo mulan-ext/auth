@@ -2,9 +2,6 @@ package token
 
 import (
 	"github.com/gin-gonic/gin"
-
-	"github.com/virzz/mulan/rsp"
-	"github.com/virzz/mulan/rsp/code"
 )
 
 func RoleMW(roles ...string) gin.HandlerFunc {
@@ -19,7 +16,7 @@ func RoleMW(roles ...string) gin.HandlerFunc {
 				return
 			}
 		}
-		c.AbortWithStatusJSON(200, rsp.C(code.Forbidden))
+		c.AbortWithStatus(403)
 	}
 }
 
@@ -29,6 +26,6 @@ func AuthMW() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		c.AbortWithStatusJSON(200, rsp.C(code.Unauthorized))
+		c.AbortWithStatus(401)
 	}
 }

@@ -6,8 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/pflag"
-	"github.com/virzz/mulan/rsp"
-	"github.com/virzz/mulan/rsp/code"
 )
 
 type Config struct {
@@ -54,6 +52,6 @@ func Mw(cfg *Config, skipPaths ...string) func(*gin.Context) {
 			c.Next()
 			return
 		}
-		c.AbortWithStatusJSON(401, rsp.E(code.Unauthorized, "Error Unauthorized"))
+		c.AbortWithStatus(401)
 	}
 }

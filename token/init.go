@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	DefaultKey = "github.com/virzz/mulan/auth"
+	DefaultKey = "github.com/mulan-ext/auth"
 	TokenKey   = "github.com/mulan-ext/auth/token"
 
 	CtxKeyID      = "id"
@@ -94,10 +94,13 @@ func Init(name string, store Store, data ...Data) gin.HandlerFunc {
 		sess := NewSession(c, store, _data)
 		c.Set(DefaultKey, sess)
 		c.Set(TokenKey, token)
+
 		// 如果Session有效，设置用户信息到Context
 		if !sess.IsNil {
 			populateContext(c, sess.Data())
 		}
+		c.Header("X-Token", token)
+		c.SetCookie(name, token, sess.maxAge, "/", "", false, true)
 		c.Next()
 	}
 }

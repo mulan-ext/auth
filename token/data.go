@@ -60,12 +60,12 @@ func (d *DataMap) UnmarshalText(buf []byte) error {
 }
 
 type DefaultData struct {
-	Token_   string          `json:"token" redis:"token"`
-	ID_      uint64          `json:"id" redis:"id"`
-	Account_ string          `json:"account" redis:"account"`
-	State_   uint16          `json:"state" redis:"state"`
-	Roles_   DataStringSlice `json:"roles" redis:"roles"`
 	Items_   DataMap         `json:"items" redis:"items"`
+	Token_   string          `json:"token" redis:"token"`
+	Account_ string          `json:"account" redis:"account"`
+	Roles_   DataStringSlice `json:"roles" redis:"roles"`
+	ID_      uint64          `json:"id" redis:"id"`
+	State_   uint16          `json:"state" redis:"state"`
 }
 
 var _ Data = (*DefaultData)(nil)

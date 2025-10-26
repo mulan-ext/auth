@@ -22,9 +22,9 @@ type memData struct {
 }
 
 type MemStore struct {
-	mu     sync.RWMutex // 使用读写锁提高并发性能
 	data   map[string]*memData
 	maxAge int
+	mu     sync.RWMutex
 }
 
 func NewMemStore(maxAge ...int) *MemStore {

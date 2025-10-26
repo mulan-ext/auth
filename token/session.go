@@ -16,16 +16,15 @@ const (
 )
 
 type Session struct {
-	store Store
-	ctx   context.Context
-	data  Data
-	IsNil bool
-
+	store     Store
+	ctx       context.Context
+	data      Data
 	keyPrefix string
-	maxAge    int
 	token     string
-	mu        sync.RWMutex // 保护并发访问
-	loaded    bool         // 标记是否已从store加载
+	maxAge    int
+	mu        sync.RWMutex
+	IsNil     bool
+	loaded    bool
 }
 
 func (s *Session) Token() string {
