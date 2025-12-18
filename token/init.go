@@ -1,6 +1,7 @@
 package token
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 
@@ -18,6 +19,8 @@ const (
 	CtxKeyIsAdmin = "is_admin"
 	RoleAdmin     = "admin"
 )
+
+var tokenValid = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 // HasRole 检查用户是否拥有指定角色
 func HasRole(c *gin.Context, role string) bool {
@@ -82,6 +85,9 @@ func Init(name string, store Store, data ...Data) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 提取token
 		token := extractToken(c, name)
+		if !tokenValid.MatchString(token) {
+			token = New()
+		}
 		// 创建或获取Data实例
 		var _data Data
 		if len(data) > 0 {
