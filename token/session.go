@@ -22,6 +22,8 @@ type Session struct {
 	keyPrefix string
 	token     string
 	maxAge    int
+	secure    bool
+	httpOnly  bool
 	mu        sync.RWMutex
 	IsNil     bool
 	loaded    bool
@@ -32,6 +34,10 @@ func (s *Session) Token() string {
 	defer s.mu.RUnlock()
 	return s.token
 }
+
+func (s *Session) SetMaxAge(v int)    { s.maxAge = v }
+func (s *Session) SetSecure(v bool)   { s.secure = v }
+func (s *Session) SetHttpOnly(v bool) { s.httpOnly = v }
 
 func (s *Session) ID() uint64               { return s.Data().ID() }
 func (s *Session) Account() string          { return s.Data().Account() }
@@ -54,12 +60,14 @@ func (s *Session) Data() Data {
 		if data, err := s.store.Get(s.ctx, s.token); err == nil {
 			s.data = data
 			s.loaded = true
+			s.IsNil = false
 			return s.data
 		}
 	}
 
-	// 如果加载失败，标记为已加载（使用当前空数据）
+	// 如果没有token或者store中找不到，标记为已加载（使用当前空数据）
 	s.loaded = true
+	s.IsNil = true
 	return s.data
 }
 
@@ -100,7 +108,14 @@ func (s *Session) SetValues(key string, val any) { s.Data().SetValues(key, val) 
 
 // Save 保存session数据
 func (s *Session) Save(lifetime ...time.Duration) error {
-	return s.store.Save(s.ctx, s.Data(), lifetime...)
+	data := s.Data()
+	s.mu.Lock()
+	if s.token == "" {
+		s.token = data.New()
+	}
+	s.mu.Unlock()
+
+	return s.store.Save(s.ctx, data, lifetime...)
 }
 
 func (s *Session) MarshalJSON() ([]byte, error) {
@@ -125,9 +140,12 @@ func NewSession(ctx context.Context, store Store, data Data, maxAge ...int) *Ses
 		store:     store,
 		keyPrefix: DefaultKeyPrefix,
 		maxAge:    DefaultMaxAge,
+		secure:    false,
+		httpOnly:  true,
 		data:      data,
 		token:     data.Token(),
 		loaded:    false,
+		IsNil:     true,
 	}
 	if len(maxAge) > 0 {
 		s.maxAge = maxAge[0]

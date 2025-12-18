@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"slices"
+	"sync"
 )
 
 type (
@@ -60,6 +62,7 @@ func (d *DataMap) UnmarshalText(buf []byte) error {
 }
 
 type DefaultData struct {
+	mu       sync.RWMutex    `json:"-" redis:"-"`
 	Items_   DataMap         `json:"items" redis:"items"`
 	Token_   string          `json:"token" redis:"token"`
 	Account_ string          `json:"account" redis:"account"`
@@ -77,36 +80,84 @@ func New() string {
 }
 
 func (d *DefaultData) New() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.Token_ = New()
 	return d.Token_
 }
-func (d *DefaultData) ID() uint64      { return d.ID_ }
-func (d *DefaultData) Token() string   { return d.Token_ }
-func (d *DefaultData) Account() string { return d.Account_ }
-func (d *DefaultData) State() uint16   { return d.State_ }
-func (d *DefaultData) Roles() []string { return []string(d.Roles_) }
-func (d *DefaultData) Items() DataMap  { return d.Items_ }
+func (d *DefaultData) ID() uint64 {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.ID_
+}
+func (d *DefaultData) Token() string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.Token_
+}
+func (d *DefaultData) Account() string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.Account_
+}
+func (d *DefaultData) State() uint16 {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.State_
+}
+func (d *DefaultData) Roles() []string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if d.Roles_ == nil {
+		return nil
+	}
+	return slices.Clone([]string(d.Roles_))
+}
+func (d *DefaultData) Items() DataMap {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if d.Items_ == nil {
+		return nil
+	}
+	m := make(DataMap, len(d.Items_))
+	for k, v := range d.Items_ {
+		m[k] = v
+	}
+	return m
+}
 func (d *DefaultData) SetToken(v string) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.Token_ = v
 	return d
 }
 func (d *DefaultData) SetID(v uint64) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.ID_ = v
 	return d
 }
 func (d *DefaultData) SetAccount(v string) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.Account_ = v
 	return d
 }
 func (d *DefaultData) SetState(v uint16) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.State_ = v
 	return d
 }
 func (d *DefaultData) SetRoles(v []string) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.Roles_ = DataStringSlice(v)
 	return d
 }
 func (d *DefaultData) SetValues(k string, v any) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if d.Items_ == nil {
 		d.Items_ = make(DataMap)
 	}
@@ -114,6 +165,8 @@ func (d *DefaultData) SetValues(k string, v any) Data {
 	return d
 }
 func (d *DefaultData) Set(key string, val any) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	switch key {
 	case "id":
 		if v, ok := val.(uint64); ok {
@@ -136,13 +189,15 @@ func (d *DefaultData) Set(key string, val any) Data {
 	return d
 }
 func (d *DefaultData) Get(key string) any {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	switch key {
 	case "id":
 		return d.ID_
 	case "account":
 		return d.Account_
 	case "roles":
-		return []string(d.Roles_)
+		return slices.Clone([]string(d.Roles_))
 	default:
 		if d.Items_ != nil {
 			if v, ok := d.Items_[key]; ok {
@@ -153,6 +208,8 @@ func (d *DefaultData) Get(key string) any {
 	return nil
 }
 func (d *DefaultData) Delete(key string) Data {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	switch key {
 	case "id":
 		d.ID_ = 0
@@ -168,7 +225,13 @@ func (d *DefaultData) Delete(key string) Data {
 	return d
 }
 func (d *DefaultData) Clear() Data {
-	_d := new(DefaultData)
-	*d = *_d
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.Items_ = nil
+	d.Token_ = ""
+	d.Account_ = ""
+	d.Roles_ = nil
+	d.ID_ = 0
+	d.State_ = 0
 	return d
 }

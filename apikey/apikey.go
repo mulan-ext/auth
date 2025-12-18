@@ -1,7 +1,7 @@
 package apikey
 
 import (
-	"slices"
+	"crypto/subtle"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -48,9 +48,17 @@ func Mw(cfg *Config, skipPaths ...string) func(*gin.Context) {
 		if current == "" {
 			current = strings.TrimSpace(strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer "))
 		}
-		if current != "" && slices.Contains(apikeys, current) {
-			c.Next()
-			return
+		if current != "" {
+			for _, key := range apikeys {
+				if key == "" {
+					continue
+				}
+				// 使用常量时间比较防止计时攻击
+				if len(key) == len(current) && subtle.ConstantTimeCompare([]byte(key), []byte(current)) == 1 {
+					c.Next()
+					return
+				}
+			}
 		}
 		c.AbortWithStatus(401)
 	}

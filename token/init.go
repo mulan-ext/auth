@@ -76,8 +76,7 @@ func extractToken(c *gin.Context, name string) string {
 			return token
 		}
 	}
-	// 4. 生成新token
-	return New()
+	return ""
 }
 
 // Init 初始化Session中间件
@@ -85,8 +84,8 @@ func Init(name string, store Store, data ...Data) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 提取token
 		token := extractToken(c, name)
-		if !tokenValid.MatchString(token) {
-			token = New()
+		if token != "" && !tokenValid.MatchString(token) {
+			token = ""
 		}
 		// 创建或获取Data实例
 		var _data Data
@@ -105,9 +104,14 @@ func Init(name string, store Store, data ...Data) gin.HandlerFunc {
 		if !sess.IsNil {
 			populateContext(c, sess.Data())
 		}
-		c.Header("X-Token", token)
-		c.SetCookie(name, token, sess.maxAge, "/", "", false, true)
+
 		c.Next()
+
+		// 请求处理完后，如果 token 存在（可能是新生成的），设置到 Header 和 Cookie
+		if t := sess.Token(); t != "" {
+			c.Header("X-Token", t)
+			c.SetCookie(name, t, sess.maxAge, "/", "", sess.secure, sess.httpOnly)
+		}
 	}
 }
 
