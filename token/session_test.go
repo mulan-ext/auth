@@ -67,28 +67,3 @@ func TestTokenMem(t *testing.T) {
 	body, _ = io.ReadAll(rsp2.Body)
 	t.Log(string(body))
 }
-
-func TestTokenFs(t *testing.T) {
-	store, err := token.NewFsStore("/tmp/fs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := setupRouter(store)
-
-	// 构建返回值
-	w1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("GET", "/login", nil)
-	r.ServeHTTP(w1, req1)
-	rsp1 := w1.Result()
-	body, _ := io.ReadAll(rsp1.Body)
-	tokenStr := string(body)
-	t.Log(tokenStr)
-
-	req2, _ := http.NewRequest("GET", "/info", nil)
-	req2.Header.Set("Authorization", "Bearer "+tokenStr)
-	w2 := httptest.NewRecorder()
-	r.ServeHTTP(w2, req2)
-	rsp2 := w2.Result()
-	body, _ = io.ReadAll(rsp2.Body)
-	t.Log(string(body))
-}

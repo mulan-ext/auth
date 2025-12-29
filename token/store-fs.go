@@ -19,7 +19,7 @@ const (
 
 var _ Store = (*FsStore)(nil)
 
-type fsData struct {
+type FsData struct {
 	Data   Data      `json:"data"`
 	Expire time.Time `json:"expire"`
 }
@@ -63,7 +63,7 @@ func (s *FsStore) Get(ctx context.Context, token string) (Data, error) {
 		return nil, err
 	}
 
-	var data fsData
+	var data FsData
 	if err := json.Unmarshal(buf, &data); err != nil {
 		return nil, err
 	}
@@ -83,8 +83,25 @@ func (s *FsStore) Save(ctx context.Context, v Data, lifetime ...time.Duration) e
 		token = v.New()
 	}
 
-	data := &fsData{
-		Data:   v,
+	// 转换为 *DefaultData 类型以便 JSON 序列化
+	var defaultData *DefaultData
+	if d, ok := v.(*DefaultData); ok {
+		defaultData = d
+	} else {
+		// 如果不是 *DefaultData 类型，创建一个新的并复制数据
+		defaultData = &DefaultData{}
+		defaultData.SetToken(v.Token())
+		defaultData.SetID(v.ID())
+		defaultData.SetAccount(v.Account())
+		defaultData.SetState(v.State())
+		defaultData.SetRoles(v.Roles())
+		for k, val := range v.Items() {
+			defaultData.SetValues(k, val)
+		}
+	}
+
+	data := &FsData{
+		Data:   defaultData,
 		Expire: s.calculateExpireTime(lifetime...),
 	}
 
@@ -92,13 +109,12 @@ func (s *FsStore) Save(ctx context.Context, v Data, lifetime ...time.Duration) e
 	if err != nil {
 		return err
 	}
-
 	return os.WriteFile(s.getFilePath(token), buf, DefaultFileMode)
 }
 
 // getFilePath 获取文件完整路径
 func (s *FsStore) getFilePath(token string) string {
-	return filepath.Join(s.dir, s.prefix+token)
+	return filepath.Join(s.dir, s.prefix+filepath.Base(token))
 }
 
 // calculateExpireTime 计算过期时间
