@@ -14,8 +14,10 @@ type Config struct {
 	Secrets []string `json:"secrets" yaml:"secrets"`
 }
 
-func FlagSet(defaultPort int) *pflag.FlagSet {
-	fs := pflag.NewFlagSet("http", pflag.ContinueOnError)
+func (c *Config) FlagSet() *pflag.FlagSet { return FlagSet() }
+
+func FlagSet() *pflag.FlagSet {
+	fs := pflag.NewFlagSet("apikey", pflag.ContinueOnError)
 	fs.String("apikey.name", "apikey", "APIKey Name")
 	fs.String("apikey.secret", "", "APIKey Secret")
 	fs.StringSlice("apikey.secrets", []string{}, "APIKey Secret List")
@@ -38,12 +40,12 @@ func Mw(cfg *Config, skipPaths ...string) func(*gin.Context) {
 			return
 		}
 		current := c.GetHeader("apikey")
-		if current == "" {
+		if current == "" && name != "" {
 			current = strings.TrimSpace(c.GetHeader(name))
-		}
-		if current == "" {
-			current, _ = c.Cookie(name)
-			current = strings.TrimSpace(current)
+			if current == "" {
+				current, _ = c.Cookie(name)
+				current = strings.TrimSpace(current)
+			}
 		}
 		if current == "" {
 			current = strings.TrimSpace(strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer "))
