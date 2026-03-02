@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RoleMW 角色中间件 - 判断用户是否拥有指定角色
 func RoleMW(roles ...string) gin.HandlerFunc {
 	roleMap := make(map[string]struct{})
 	for _, role := range roles {

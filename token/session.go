@@ -150,5 +150,6 @@ func NewSession(ctx context.Context, store Store, data Data, maxAge ...int) *Ses
 	if len(maxAge) > 0 {
 		s.maxAge = maxAge[0]
 	}
+	_ = s.Data()
 	return s
 }

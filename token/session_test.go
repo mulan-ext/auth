@@ -9,10 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mulan-ext/auth/token"
+	"github.com/redis/go-redis/v9"
 )
 
 func handlerInfo(c *gin.Context) {
-	v := token.Default(c).Data()
+	sess := token.Default(c)
+	v := sess.Data()
 	buf, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		c.String(500, "Marshal"+err.Error())
@@ -41,13 +43,43 @@ func setupRouter(store token.Store) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(token.Init("token", store))
-	r.GET("/info", handlerInfo)
 	r.GET("/login", handlerLogin)
+	r.GET("/info", token.AuthMW(), handlerInfo)
 	return r
 }
 
 func TestTokenMem(t *testing.T) {
 	store := token.NewMemStore()
+	r := setupRouter(store)
+
+	// 构建返回值
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest("GET", "/login", nil)
+	r.ServeHTTP(w1, req1)
+	rsp1 := w1.Result()
+	body, _ := io.ReadAll(rsp1.Body)
+	tokenStr := string(body)
+	t.Log(tokenStr)
+
+	req2, _ := http.NewRequest("GET", "/info", nil)
+	req2.Header.Set("Authorization", "Bearer "+tokenStr)
+	w2 := httptest.NewRecorder()
+	r.ServeHTTP(w2, req2)
+	rsp2 := w2.Result()
+	body, _ = io.ReadAll(rsp2.Body)
+	t.Log(string(body))
+}
+
+func TestTokenRedis(t *testing.T) {
+	t.Skip()
+	store, err := token.NewRedisStore(redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := setupRouter(store)
 
 	// 构建返回值
