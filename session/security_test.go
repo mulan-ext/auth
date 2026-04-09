@@ -1,14 +1,14 @@
-package token_test
+package session_test
 
 import (
 	"sync"
 	"testing"
 
-	"github.com/mulan-ext/auth/token"
+	"github.com/mulan-ext/auth/session"
 )
 
 func TestDefaultDataConcurrency(t *testing.T) {
-	data := &token.DefaultData{}
+	data := &session.DefaultData{}
 	var wg sync.WaitGroup
 	numRoutines := 100
 	numOps := 1000
@@ -31,7 +31,7 @@ func TestDefaultDataConcurrency(t *testing.T) {
 }
 
 func TestDataRolesClone(t *testing.T) {
-	data := &token.DefaultData{}
+	data := &session.DefaultData{}
 	roles := []string{"admin", "user"}
 	data.SetRoles(roles)
 
@@ -45,7 +45,7 @@ func TestDataRolesClone(t *testing.T) {
 }
 
 func TestDataItemsClone(t *testing.T) {
-	data := &token.DefaultData{}
+	data := &session.DefaultData{}
 	data.SetValues("foo", "bar")
 
 	items1 := data.Items()

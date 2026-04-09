@@ -1,8 +1,18 @@
-package token
+package session
 
 import (
 	"github.com/gin-gonic/gin"
 )
+
+func AuthMW() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if _, ok := c.Get(CtxKeyID); ok {
+			c.Next()
+			return
+		}
+		c.AbortWithStatus(401)
+	}
+}
 
 // RoleMW 角色中间件 - 判断用户是否拥有指定角色
 func RoleMW(roles ...string) gin.HandlerFunc {
@@ -18,15 +28,5 @@ func RoleMW(roles ...string) gin.HandlerFunc {
 			}
 		}
 		c.AbortWithStatus(403)
-	}
-}
-
-func AuthMW() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if _, ok := c.Get(CtxKeyID); ok {
-			c.Next()
-			return
-		}
-		c.AbortWithStatus(401)
 	}
 }

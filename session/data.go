@@ -1,4 +1,4 @@
-package token
+package session
 
 import (
 	"crypto/rand"
@@ -37,9 +37,18 @@ type (
 var _ encoding.TextUnmarshaler = (*DataStringSlice)(nil)
 var _ encoding.TextUnmarshaler = (*DataMap)(nil)
 
-func (d DataStringSlice) MarshalBinary() ([]byte, error)  { return json.Marshal(d) }
-func (d *DataStringSlice) UnmarshalText(buf []byte) error { return d.UnmarshalBinary(buf) }
-func (d *DataStringSlice) UnmarshalJSON(buf []byte) error { return d.UnmarshalText(buf) }
+func (d DataStringSlice) MarshalBinary() ([]byte, error) {
+	return json.Marshal(d)
+}
+
+func (d *DataStringSlice) UnmarshalText(buf []byte) error {
+	return d.UnmarshalBinary(buf)
+}
+
+func (d *DataStringSlice) UnmarshalJSON(buf []byte) error {
+	return d.UnmarshalText(buf)
+}
+
 func (d *DataStringSlice) UnmarshalBinary(buf []byte) error {
 	v := []string{}
 	err := json.Unmarshal(buf, &v)
@@ -49,9 +58,13 @@ func (d *DataStringSlice) UnmarshalBinary(buf []byte) error {
 	*d = DataStringSlice(v)
 	return nil
 }
-func (d DataMap) MarshalBinary() ([]byte, error)    { return json.Marshal(d) }
+
+func (d DataMap) MarshalBinary() ([]byte, error) { return json.Marshal(d) }
+
 func (d *DataMap) UnmarshalBinary(buf []byte) error { return json.Unmarshal(buf, d) }
-func (d *DataMap) UnmarshalJSON(buf []byte) error   { return d.UnmarshalText(buf) }
+
+func (d *DataMap) UnmarshalJSON(buf []byte) error { return d.UnmarshalText(buf) }
+
 func (d *DataMap) UnmarshalText(buf []byte) error {
 	_d := make(map[string]any)
 	if err := json.Unmarshal(buf, &_d); err != nil {
@@ -85,26 +98,31 @@ func (d *DefaultData) New() string {
 	d.Token_ = New()
 	return d.Token_
 }
+
 func (d *DefaultData) ID() uint64 {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.ID_
 }
+
 func (d *DefaultData) Token() string {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.Token_
 }
+
 func (d *DefaultData) Account() string {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.Account_
 }
+
 func (d *DefaultData) State() uint16 {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.State_
 }
+
 func (d *DefaultData) Roles() []string {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -113,6 +131,7 @@ func (d *DefaultData) Roles() []string {
 	}
 	return slices.Clone([]string(d.Roles_))
 }
+
 func (d *DefaultData) Items() DataMap {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -125,36 +144,42 @@ func (d *DefaultData) Items() DataMap {
 	}
 	return m
 }
+
 func (d *DefaultData) SetToken(v string) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Token_ = v
 	return d
 }
+
 func (d *DefaultData) SetID(v uint64) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.ID_ = v
 	return d
 }
+
 func (d *DefaultData) SetAccount(v string) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Account_ = v
 	return d
 }
+
 func (d *DefaultData) SetState(v uint16) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.State_ = v
 	return d
 }
+
 func (d *DefaultData) SetRoles(v []string) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.Roles_ = DataStringSlice(v)
 	return d
 }
+
 func (d *DefaultData) SetValues(k string, v any) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -164,6 +189,7 @@ func (d *DefaultData) SetValues(k string, v any) Data {
 	d.Items_[k] = v
 	return d
 }
+
 func (d *DefaultData) Set(key string, val any) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -188,6 +214,7 @@ func (d *DefaultData) Set(key string, val any) Data {
 	}
 	return d
 }
+
 func (d *DefaultData) Get(key string) any {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -207,6 +234,7 @@ func (d *DefaultData) Get(key string) any {
 	}
 	return nil
 }
+
 func (d *DefaultData) Delete(key string) Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -224,6 +252,7 @@ func (d *DefaultData) Delete(key string) Data {
 	}
 	return d
 }
+
 func (d *DefaultData) Clear() Data {
 	d.mu.Lock()
 	defer d.mu.Unlock()

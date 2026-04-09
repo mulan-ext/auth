@@ -1,4 +1,4 @@
-package token_test
+package session_test
 
 import (
 	"encoding/json"
@@ -8,12 +8,12 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mulan-ext/auth/token"
-	"github.com/redis/go-redis/v9"
+	"github.com/mulan-ext/auth/session"
+	"github.com/mulan-ext/rdb"
 )
 
 func handlerInfo(c *gin.Context) {
-	sess := token.Default(c)
+	sess := session.Default(c)
 	v := sess.Data()
 	buf, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -29,7 +29,7 @@ func handlerInfo(c *gin.Context) {
 }
 
 func handlerLogin(c *gin.Context) {
-	v := token.Default(c)
+	v := session.Default(c)
 	v.SetID(1)
 	v.SetAccount("test")
 	v.SetRoles([]string{"admin"})
@@ -39,18 +39,21 @@ func handlerLogin(c *gin.Context) {
 	c.String(200, v.Token())
 }
 
-func setupRouter(store token.Store) *gin.Engine {
+func setupRouter(cfg *session.Config) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(token.Init("token", store))
+	mw, err := session.Init(cfg)
+	if err != nil {
+		panic(err)
+	}
+	r.Use(mw)
 	r.GET("/login", handlerLogin)
-	r.GET("/info", token.AuthMW(), handlerInfo)
+	r.GET("/info", session.AuthMW(), handlerInfo)
 	return r
 }
 
 func TestTokenMem(t *testing.T) {
-	store := token.NewMemStore()
-	r := setupRouter(store)
+	r := setupRouter(&session.Config{})
 
 	// 构建返回值
 	w1 := httptest.NewRecorder()
@@ -72,15 +75,10 @@ func TestTokenMem(t *testing.T) {
 
 func TestTokenRedis(t *testing.T) {
 	t.Skip()
-	store, err := token.NewRedisStore(redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := setupRouter(store)
+	r := setupRouter(&session.Config{Driver: "rdb", RDB: rdb.Config{
+		Host: "localhost",
+		Port: 6379,
+	}})
 
 	// 构建返回值
 	w1 := httptest.NewRecorder()

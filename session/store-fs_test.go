@@ -1,4 +1,4 @@
-package token_test
+package session_test
 
 import (
 	"context"
@@ -11,18 +11,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mulan-ext/auth/token"
+	"github.com/mulan-ext/auth/session"
 )
 
 // fsStoreTestHelper 提供测试辅助方法，用于在不修改 store-fs.go 的情况下测试文件存储
 type fsStoreTestHelper struct {
-	store *token.FsStore
+	store *session.FsStore
 	dir   string
 }
 
 // newFsStoreTestHelper 创建测试辅助工具
 func newFsStoreTestHelper(dir string, maxAge ...int) (*fsStoreTestHelper, error) {
-	store, err := token.NewFsStore(dir, maxAge...)
+	store, err := session.NewFsStore(dir, maxAge...)
 	if err != nil {
 		return nil, err
 	}
@@ -33,12 +33,12 @@ func newFsStoreTestHelper(dir string, maxAge ...int) (*fsStoreTestHelper, error)
 }
 
 // Save 保存数据（直接调用 store.Save）
-func (h *fsStoreTestHelper) Save(ctx context.Context, v token.Data, lifetime ...time.Duration) error {
+func (h *fsStoreTestHelper) Save(ctx context.Context, v session.Data, lifetime ...time.Duration) error {
 	return h.store.Save(ctx, v, lifetime...)
 }
 
 // Get 获取数据（使用手动反序列化绕过接口类型问题）
-func (h *fsStoreTestHelper) Get(ctx context.Context, tokenStr string) (token.Data, error) {
+func (h *fsStoreTestHelper) Get(ctx context.Context, tokenStr string) (session.Data, error) {
 	// 构建文件路径（与 store-fs.go 中的 getFilePath 逻辑一致）
 	filePath := filepath.Join(h.dir, "ginx_auth_token_"+filepath.Base(tokenStr))
 
@@ -46,15 +46,15 @@ func (h *fsStoreTestHelper) Get(ctx context.Context, tokenStr string) (token.Dat
 	rawJSON, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, token.ErrTokenNotFound
+			return nil, session.ErrTokenNotFound
 		}
 		return nil, err
 	}
 
 	// 使用具体类型 *DefaultData 进行反序列化
 	var data struct {
-		Data   *token.DefaultData `json:"data"`
-		Expire time.Time          `json:"expire"`
+		Data   *session.DefaultData `json:"data"`
+		Expire time.Time            `json:"expire"`
 	}
 
 	if err := json.Unmarshal(rawJSON, &data); err != nil {
@@ -64,7 +64,7 @@ func (h *fsStoreTestHelper) Get(ctx context.Context, tokenStr string) (token.Dat
 	// 检查是否过期
 	if !data.Expire.IsZero() && data.Expire.Before(time.Now()) {
 		h.store.Clear(ctx, tokenStr)
-		return nil, token.ErrTokenExpired
+		return nil, session.ErrTokenExpired
 	}
 
 	return data.Data, nil
@@ -76,12 +76,7 @@ func (h *fsStoreTestHelper) Clear(ctx context.Context, tokenStr string) error {
 }
 
 func TestTokenFs(t *testing.T) {
-	store, err := token.NewFsStore("/tmp/fs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := setupRouter(store)
-
+	r := setupRouter(&session.Config{Driver: "fs", Dir: "/tmp/fs"})
 	// 构建返回值
 	w1 := httptest.NewRecorder()
 	req1, _ := http.NewRequest("GET", "/login", nil)
@@ -104,7 +99,7 @@ func TestTokenFs(t *testing.T) {
 func TestFsStore_NewFsStore(t *testing.T) {
 	t.Run("创建默认配置的存储", func(t *testing.T) {
 		dir := t.TempDir()
-		store, err := token.NewFsStore(dir)
+		store, err := session.NewFsStore(dir)
 		if err != nil {
 			t.Fatalf("创建存储失败: %v", err)
 		}
@@ -121,7 +116,7 @@ func TestFsStore_NewFsStore(t *testing.T) {
 	t.Run("创建自定义 maxAge 的存储", func(t *testing.T) {
 		dir := t.TempDir()
 		customMaxAge := 7200 // 2 小时
-		store, err := token.NewFsStore(dir, customMaxAge)
+		store, err := session.NewFsStore(dir, customMaxAge)
 		if err != nil {
 			t.Fatalf("创建存储失败: %v", err)
 		}
@@ -133,7 +128,7 @@ func TestFsStore_NewFsStore(t *testing.T) {
 	t.Run("创建嵌套目录", func(t *testing.T) {
 		baseDir := t.TempDir()
 		nestedDir := filepath.Join(baseDir, "level1", "level2", "level3")
-		store, err := token.NewFsStore(nestedDir)
+		store, err := session.NewFsStore(nestedDir)
 		if err != nil {
 			t.Fatalf("创建嵌套目录存储失败: %v", err)
 		}
@@ -160,7 +155,7 @@ func TestFsStore_SaveAndGet(t *testing.T) {
 		}
 
 		// 创建测试数据
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetID(12345)
 		data.SetAccount("test_user")
 		data.SetRoles([]string{"admin", "user"})
@@ -212,7 +207,7 @@ func TestFsStore_SaveAndGet(t *testing.T) {
 			t.Fatalf("创建存储失败: %v", err)
 		}
 
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetID(99999)
 		tokenStr := data.New()
 
@@ -233,7 +228,7 @@ func TestFsStore_SaveAndGet(t *testing.T) {
 
 		// 再次获取应该失败
 		_, err = helper.Get(ctx, tokenStr)
-		if err != token.ErrTokenExpired {
+		if err != session.ErrTokenExpired {
 			t.Errorf("期望 ErrTokenExpired 错误, 得到: %v", err)
 		}
 	})
@@ -245,7 +240,7 @@ func TestFsStore_SaveAndGet(t *testing.T) {
 			t.Fatalf("创建存储失败: %v", err)
 		}
 
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetID(11111)
 		// 不设置 Token，应该自动生成
 
@@ -277,7 +272,7 @@ func TestFsStore_SaveAndGet(t *testing.T) {
 		}
 
 		// 第一次保存
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetID(123)
 		data.SetAccount("old_account")
 		tokenStr := data.New()
@@ -319,7 +314,7 @@ func TestFsStore_Clear(t *testing.T) {
 		}
 
 		// 保存数据
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetID(123)
 		tokenStr := data.New()
 		if err := helper.Save(ctx, data); err != nil {
@@ -333,7 +328,7 @@ func TestFsStore_Clear(t *testing.T) {
 
 		// 再次获取应该失败
 		_, err = helper.Get(ctx, tokenStr)
-		if err != token.ErrTokenNotFound {
+		if err != session.ErrTokenNotFound {
 			t.Errorf("期望 ErrTokenNotFound 错误, 得到: %v", err)
 		}
 	})
@@ -359,7 +354,7 @@ func TestFsStore_Clear(t *testing.T) {
 			t.Fatalf("创建存储失败: %v", err)
 		}
 
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		tokenStr := data.New()
 		if err := helper.Save(ctx, data); err != nil {
 			t.Fatalf("保存数据失败: %v", err)
@@ -389,7 +384,7 @@ func TestFsStore_Get_Errors(t *testing.T) {
 		}
 
 		_, err = helper.Get(ctx, "non_existent_token")
-		if err != token.ErrTokenNotFound {
+		if err != session.ErrTokenNotFound {
 			t.Errorf("期望 ErrTokenNotFound 错误, 得到: %v", err)
 		}
 	})
@@ -401,7 +396,7 @@ func TestFsStore_Get_Errors(t *testing.T) {
 			t.Fatalf("创建存储失败: %v", err)
 		}
 
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		tokenStr := data.New()
 
 		// 保存数据，100 毫秒后过期
@@ -415,13 +410,13 @@ func TestFsStore_Get_Errors(t *testing.T) {
 
 		// 获取应该返回过期错误
 		_, err = helper.Get(ctx, tokenStr)
-		if err != token.ErrTokenExpired {
+		if err != session.ErrTokenExpired {
 			t.Errorf("期望 ErrTokenExpired 错误, 得到: %v", err)
 		}
 
 		// 过期后文件应该被删除
 		_, err = helper.Get(ctx, tokenStr)
-		if err != token.ErrTokenNotFound {
+		if err != session.ErrTokenNotFound {
 			t.Errorf("期望文件已被删除 (ErrTokenNotFound), 得到: %v", err)
 		}
 	})
@@ -442,7 +437,7 @@ func TestFsStore_Concurrency(t *testing.T) {
 
 		for i := range numGoroutines {
 			go func(id int) {
-				data := &token.DefaultData{}
+				data := &session.DefaultData{}
 				data.SetID(uint64(id))
 				data.SetAccount("user_" + string(rune('0'+id)))
 				tokenStr := data.New()
@@ -487,7 +482,7 @@ func TestFsStore_EdgeCases(t *testing.T) {
 		}
 
 		// 尝试使用包含路径分隔符的 Token（应该被 filepath.Base 处理）
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetToken("../../../etc/passwd")
 		data.SetID(999)
 
@@ -512,7 +507,7 @@ func TestFsStore_EdgeCases(t *testing.T) {
 			t.Fatalf("创建存储失败: %v", err)
 		}
 
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		tokenStr := data.New()
 
 		if err := helper.Save(ctx, data); err != nil {
@@ -543,7 +538,7 @@ func TestFsStore_EdgeCases(t *testing.T) {
 			t.Fatalf("创建存储失败: %v", err)
 		}
 
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetID(777)
 		tokenStr := data.New()
 
@@ -571,7 +566,7 @@ func TestFsStore_EdgeCases(t *testing.T) {
 			t.Fatalf("创建存储失败: %v", err)
 		}
 
-		data := &token.DefaultData{}
+		data := &session.DefaultData{}
 		data.SetID(123)
 		data.SetValues("string", "test_value")
 		data.SetValues("number", 42)

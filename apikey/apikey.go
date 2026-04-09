@@ -1,7 +1,6 @@
 package apikey
 
 import (
-	"crypto/subtle"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -24,42 +23,36 @@ func FlagSet() *pflag.FlagSet {
 	return fs
 }
 
-func Mw(cfg *Config, skipPaths ...string) func(*gin.Context) {
-	name := strings.TrimSpace(cfg.Name)
-	apikeys := append([]string{cfg.Value}, cfg.Values...)
+func Mw(cfg *Config) func(*gin.Context) {
+	apikeys := map[string]struct{}{}
+	if cfg.Value != "" {
+		apikeys[cfg.Value] = struct{}{}
+	}
+	for _, key := range cfg.Values {
+		if key = strings.TrimSpace(key); key != "" {
+			apikeys[key] = struct{}{}
+		}
+	}
 	if len(apikeys) == 0 {
 		return func(c *gin.Context) { c.Next() }
 	}
-	skipPathMap := make(map[string]struct{})
-	for _, path := range skipPaths {
-		skipPathMap[path] = struct{}{}
+	name := strings.TrimSpace(cfg.Name)
+	if name == "" {
+		name = "apikey"
 	}
 	return func(c *gin.Context) {
-		if _, ok := skipPathMap[c.Request.URL.Path]; ok {
-			c.Next()
-			return
-		}
-		current := c.GetHeader("apikey")
-		if current == "" && name != "" {
-			current = strings.TrimSpace(c.GetHeader(name))
-			if current == "" {
-				current, _ = c.Cookie(name)
-				current = strings.TrimSpace(current)
-			}
+		current := strings.TrimSpace(c.GetHeader(name))
+		if current == "" {
+			current, _ = c.Cookie(name)
+			current = strings.TrimSpace(current)
 		}
 		if current == "" {
 			current = strings.TrimSpace(strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer "))
 		}
-		if current != "" {
-			for _, key := range apikeys {
-				if key == "" {
-					continue
-				}
-				// 使用常量时间比较防止计时攻击
-				if len(key) == len(current) && subtle.ConstantTimeCompare([]byte(key), []byte(current)) == 1 {
-					c.Next()
-					return
-				}
+		for apikey := range apikeys {
+			if apikey == current {
+				c.Next()
+				return
 			}
 		}
 		c.AbortWithStatus(401)

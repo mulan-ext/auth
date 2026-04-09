@@ -1,4 +1,4 @@
-package token_test
+package session_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mulan-ext/auth/token"
+	"github.com/mulan-ext/auth/session"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -43,7 +43,7 @@ func TestRedisStore(t *testing.T) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		t.Fatal("Failed to create RedisStore:", err)
 	}
@@ -52,7 +52,7 @@ func TestRedisStore(t *testing.T) {
 
 	// 测试保存和获取
 	t.Run("SaveAndGet", func(t *testing.T) {
-		data := &token.DefaultData{Token_: "test_token_001"}
+		data := &session.DefaultData{Token_: "test_token_001"}
 		data.SetID(1)
 		data.SetAccount("test_user")
 		data.SetRoles([]string{"admin", "user"})
@@ -84,7 +84,7 @@ func TestRedisStore(t *testing.T) {
 
 	// 测试过期时间
 	t.Run("Expiration", func(t *testing.T) {
-		data := &token.DefaultData{Token_: "test_token_002"}
+		data := &session.DefaultData{Token_: "test_token_002"}
 		data.SetID(2)
 
 		// 保存，1秒过期
@@ -104,14 +104,14 @@ func TestRedisStore(t *testing.T) {
 
 		// 获取应该失败
 		_, err = store.Get(ctx, "test_token_002")
-		if err != token.ErrTokenNotFound {
+		if err != session.ErrTokenNotFound {
 			t.Error("Token should have expired")
 		}
 	})
 
 	// 测试清除
 	t.Run("Clear", func(t *testing.T) {
-		data := &token.DefaultData{Token_: "test_token_003"}
+		data := &session.DefaultData{Token_: "test_token_003"}
 		data.SetID(3)
 
 		// 保存
@@ -128,7 +128,7 @@ func TestRedisStore(t *testing.T) {
 
 		// 获取应该失败
 		_, err = store.Get(ctx, "test_token_003")
-		if err != token.ErrTokenNotFound {
+		if err != session.ErrTokenNotFound {
 			t.Error("Token should be cleared")
 		}
 	})
@@ -136,14 +136,14 @@ func TestRedisStore(t *testing.T) {
 	// 测试不存在的token
 	t.Run("NonExistentToken", func(t *testing.T) {
 		_, err := store.Get(ctx, "non_existent_token")
-		if err != token.ErrTokenNotFound {
+		if err != session.ErrTokenNotFound {
 			t.Error("Should return ErrTokenNotFound for non-existent token")
 		}
 	})
 
 	// 测试更新
 	t.Run("Update", func(t *testing.T) {
-		data := &token.DefaultData{Token_: "test_token_004"}
+		data := &session.DefaultData{Token_: "test_token_004"}
 		data.SetID(4)
 		data.SetAccount("original")
 
@@ -184,15 +184,15 @@ func TestRedisStoreWithSession(t *testing.T) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		t.Fatal("Failed to create RedisStore:", err)
 	}
 
 	ctx := context.Background()
-	data := &token.DefaultData{Token_: "session_test_token"}
+	data := &session.DefaultData{Token_: "session_test_token"}
 
-	sess := token.NewSession(ctx, store, data)
+	sess := session.NewSession(ctx, store, data)
 
 	// 设置数据
 	sess.SetID(100)
@@ -207,8 +207,8 @@ func TestRedisStoreWithSession(t *testing.T) {
 	}
 
 	// 创建新Session，从Redis加载
-	newData := &token.DefaultData{Token_: "session_test_token"}
-	newSess := token.NewSession(ctx, store, newData)
+	newData := &session.DefaultData{Token_: "session_test_token"}
+	newSess := session.NewSession(ctx, store, newData)
 
 	// 验证数据
 	if newSess.ID() != 100 {
@@ -234,7 +234,7 @@ func BenchmarkRedisStoreSave(b *testing.B) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		b.Fatal("Failed to create RedisStore:", err)
 	}
@@ -243,7 +243,7 @@ func BenchmarkRedisStoreSave(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data := &token.DefaultData{Token_: fmt.Sprintf("bench_token_%d", i)}
+		data := &session.DefaultData{Token_: fmt.Sprintf("bench_token_%d", i)}
 		data.SetID(uint64(i))
 		data.SetAccount(fmt.Sprintf("user_%d", i))
 		store.Save(ctx, data)
@@ -265,7 +265,7 @@ func BenchmarkRedisStoreGet(b *testing.B) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		b.Fatal("Failed to create RedisStore:", err)
 	}
@@ -273,7 +273,7 @@ func BenchmarkRedisStoreGet(b *testing.B) {
 	ctx := context.Background()
 
 	// 准备测试数据
-	data := &token.DefaultData{Token_: "bench_get_token"}
+	data := &session.DefaultData{Token_: "bench_get_token"}
 	data.SetID(1)
 	data.SetAccount("test_user")
 	store.Save(ctx, data)
@@ -297,7 +297,7 @@ func BenchmarkRedisStoreGetParallel(b *testing.B) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		b.Fatal("Failed to create RedisStore:", err)
 	}
@@ -306,7 +306,7 @@ func BenchmarkRedisStoreGetParallel(b *testing.B) {
 
 	// 准备100个测试token
 	for i := 0; i < 100; i++ {
-		data := &token.DefaultData{Token_: fmt.Sprintf("parallel_token_%d", i)}
+		data := &session.DefaultData{Token_: fmt.Sprintf("parallel_token_%d", i)}
 		data.SetID(uint64(i))
 		data.SetAccount(fmt.Sprintf("user_%d", i))
 		store.Save(ctx, data)
@@ -338,7 +338,7 @@ func BenchmarkRedisStoreSaveParallel(b *testing.B) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		b.Fatal("Failed to create RedisStore:", err)
 	}
@@ -349,7 +349,7 @@ func BenchmarkRedisStoreSaveParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			data := &token.DefaultData{Token_: fmt.Sprintf("parallel_save_%d", i)}
+			data := &session.DefaultData{Token_: fmt.Sprintf("parallel_save_%d", i)}
 			data.SetID(uint64(i))
 			data.SetAccount(fmt.Sprintf("user_%d", i))
 			store.Save(ctx, data)
@@ -367,7 +367,7 @@ func BenchmarkRedisStoreMixed(b *testing.B) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		b.Fatal("Failed to create RedisStore:", err)
 	}
@@ -376,7 +376,7 @@ func BenchmarkRedisStoreMixed(b *testing.B) {
 
 	// 准备100个测试token
 	for i := 0; i < 100; i++ {
-		data := &token.DefaultData{Token_: fmt.Sprintf("mixed_token_%d", i)}
+		data := &session.DefaultData{Token_: fmt.Sprintf("mixed_token_%d", i)}
 		data.SetID(uint64(i))
 		data.SetAccount(fmt.Sprintf("user_%d", i))
 		store.Save(ctx, data)
@@ -387,7 +387,7 @@ func BenchmarkRedisStoreMixed(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			if i%5 == 0 { // 20%写操作
-				data := &token.DefaultData{Token_: fmt.Sprintf("mixed_token_%d", i%100)}
+				data := &session.DefaultData{Token_: fmt.Sprintf("mixed_token_%d", i%100)}
 				data.SetID(uint64(i))
 				store.Save(ctx, data)
 			} else { // 80%读操作
@@ -416,12 +416,12 @@ func BenchmarkStoreComparison_Redis(b *testing.B) {
 
 	ctx := context.Background()
 
-	stores := map[string]token.Store{
-		"MemStore":        token.NewMemStore(),
-		"ShardedMemStore": token.NewShardedMemStore(16),
+	stores := map[string]session.Store{
+		"MemStore":        session.NewMemStore(),
+		"ShardedMemStore": session.NewShardedMemStore(16),
 	}
 
-	redisStore, err := token.NewRedisStore(client)
+	redisStore, err := session.NewRedisStore(client)
 	if err == nil {
 		stores["RedisStore"] = redisStore
 	}
@@ -429,14 +429,14 @@ func BenchmarkStoreComparison_Redis(b *testing.B) {
 	for name, store := range stores {
 		b.Run(name+"_Save", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				data := &token.DefaultData{Token_: fmt.Sprintf("compare_token_%d", i)}
+				data := &session.DefaultData{Token_: fmt.Sprintf("compare_token_%d", i)}
 				data.SetID(uint64(i))
 				store.Save(ctx, data)
 			}
 		})
 
 		// 预先保存一个token用于Get测试
-		testData := &token.DefaultData{Token_: "compare_test_token"}
+		testData := &session.DefaultData{Token_: "compare_test_token"}
 		testData.SetID(1)
 		store.Save(ctx, testData)
 
@@ -457,7 +457,7 @@ func BenchmarkRedisStoreWithPipeline(b *testing.B) {
 	}
 	defer client.Close()
 
-	store, err := token.NewRedisStore(client)
+	store, err := session.NewRedisStore(client)
 	if err != nil {
 		b.Fatal("Failed to create RedisStore:", err)
 	}
@@ -466,7 +466,7 @@ func BenchmarkRedisStoreWithPipeline(b *testing.B) {
 
 	b.Run("WithExpiration", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			data := &token.DefaultData{Token_: fmt.Sprintf("pipeline_token_%d", i)}
+			data := &session.DefaultData{Token_: fmt.Sprintf("pipeline_token_%d", i)}
 			data.SetID(uint64(i))
 			store.Save(ctx, data, 3600*time.Second)
 		}
@@ -474,7 +474,7 @@ func BenchmarkRedisStoreWithPipeline(b *testing.B) {
 
 	b.Run("WithoutExpiration", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			data := &token.DefaultData{Token_: fmt.Sprintf("pipeline_token_%d", i)}
+			data := &session.DefaultData{Token_: fmt.Sprintf("pipeline_token_%d", i)}
 			data.SetID(uint64(i))
 			store.Save(ctx, data)
 		}

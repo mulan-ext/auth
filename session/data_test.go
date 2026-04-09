@@ -1,13 +1,13 @@
-package token_test
+package session_test
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mulan-ext/auth/token"
+	"github.com/mulan-ext/auth/session"
 )
 
-var data = token.DefaultData{
+var data = session.DefaultData{
 	Token_:   "token",
 	ID_:      1,
 	Account_: "account",
@@ -21,7 +21,7 @@ func TestDataJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(string(buf))
-	v := &token.DefaultData{}
+	v := &session.DefaultData{}
 	err = json.Unmarshal(buf, v)
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +35,7 @@ func TestDataSliceBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(string(buf))
-	v := &token.DefaultData{}
+	v := &session.DefaultData{}
 	err = v.Roles_.UnmarshalBinary(buf)
 	if err != nil {
 		t.Fatal(err)
@@ -49,7 +49,7 @@ func TestDataMapBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(string(buf))
-	v := &token.DefaultData{}
+	v := &session.DefaultData{}
 	err = v.Items_.UnmarshalText(buf)
 	if err != nil {
 		t.Fatal(err)
