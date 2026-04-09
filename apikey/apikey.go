@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	Name    string   `json:"name" yaml:"name"`
-	Secret  string   `json:"secret" yaml:"secret"`
-	Secrets []string `json:"secrets" yaml:"secrets"`
+	Name   string   `json:"name" yaml:"name"`
+	Value  string   `json:"value" yaml:"value"`
+	Values []string `json:"values" yaml:"values"`
 }
 
 func (c *Config) FlagSet() *pflag.FlagSet { return FlagSet() }
@@ -19,14 +19,14 @@ func (c *Config) FlagSet() *pflag.FlagSet { return FlagSet() }
 func FlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("apikey", pflag.ContinueOnError)
 	fs.String("apikey.name", "apikey", "APIKey Name")
-	fs.String("apikey.secret", "", "APIKey Secret")
-	fs.StringSlice("apikey.secrets", []string{}, "APIKey Secret List")
+	fs.String("apikey.value", "", "APIKey Value")
+	fs.StringSlice("apikey.values", []string{}, "APIKey Value List")
 	return fs
 }
 
 func Mw(cfg *Config, skipPaths ...string) func(*gin.Context) {
 	name := strings.TrimSpace(cfg.Name)
-	apikeys := append([]string{cfg.Secret}, cfg.Secrets...)
+	apikeys := append([]string{cfg.Value}, cfg.Values...)
 	if len(apikeys) == 0 {
 		return func(c *gin.Context) { c.Next() }
 	}
