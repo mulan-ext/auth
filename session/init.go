@@ -54,26 +54,30 @@ func Init(cfg *Config) (gin.HandlerFunc, error) {
 		if err != nil {
 			return nil, err
 		}
-		mw = Mw(name, store)
+		mw = newMiddleware(name, store, cfg.HeaderOnly)
 	// 使用文件系统作为存储
 	case "fs":
 		store, err := NewFsStore(cfg.Dir, cfg.TTL)
 		if err != nil {
 			return nil, err
 		}
-		mw = Mw(name, store)
+		mw = newMiddleware(name, store, cfg.HeaderOnly)
 	// 默认使用内存存储
 	default:
 		store := NewMemStore(cfg.TTL)
-		mw = Mw(name, store)
+		mw = newMiddleware(name, store, cfg.HeaderOnly)
 	}
 	return mw, nil
 }
 
 func Mw(name string, store Store, data ...Data) gin.HandlerFunc {
+	return newMiddleware(name, store, false, data...)
+}
+
+func newMiddleware(name string, store Store, headerOnly bool, data ...Data) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 提取token
-		token := extractToken(c, name)
+		token := extractToken(c, name, !headerOnly)
 		if token != "" && !tokenValid.MatchString(token) {
 			token = ""
 		}
@@ -100,7 +104,9 @@ func Mw(name string, store Store, data ...Data) gin.HandlerFunc {
 		// 请求处理完后，如果 token 存在（可能是新生成的），设置到 Header 和 Cookie
 		if t := sess.Token(); t != "" {
 			c.Header("X-Token", t)
-			c.SetCookie(name, t, sess.maxAge, "/", "", sess.secure, sess.httpOnly)
+			if !headerOnly {
+				c.SetCookie(name, t, sess.maxAge, "/", "", sess.secure, sess.httpOnly)
+			}
 		}
 	}
 }

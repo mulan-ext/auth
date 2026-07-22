@@ -101,3 +101,35 @@ func TestInitUsesConfiguredNameForHeaderExtraction(t *testing.T) {
 		t.Fatalf("unexpected response body: got %q want %q", body, "tester")
 	}
 }
+
+func TestInitHeaderOnlyDisablesCookieTransport(t *testing.T) {
+	const sessionName = "auth_token"
+	router := buildInitNameRouter(t, &session.Config{
+		Name:       sessionName,
+		Driver:     "memory",
+		HeaderOnly: true,
+	})
+
+	login := httptest.NewRecorder()
+	router.ServeHTTP(login, httptest.NewRequest(http.MethodGet, "/login", nil))
+	if cookie := login.Header().Get("Set-Cookie"); cookie != "" {
+		t.Fatalf("unexpected Set-Cookie header: %s", cookie)
+	}
+	token := strings.TrimSpace(login.Body.String())
+
+	request := httptest.NewRequest(http.MethodGet, "/me", nil)
+	request.AddCookie(&http.Cookie{Name: sessionName, Value: token})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("cookie authenticated a header-only session: %d", response.Code)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/me", nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("bearer token was rejected: %d", response.Code)
+	}
+}

@@ -44,7 +44,7 @@ func populateContext(c *gin.Context, data Data) {
 }
 
 // extractToken 从请求中提取token（按优先级）
-func extractToken(c *gin.Context, name string) string {
+func extractToken(c *gin.Context, name string, allowCookie bool) string {
 	// 1. 尝试从自定义Header获取
 	headerKeys := []string{"X-Token", "X-Api-Key", name, "X-" + name}
 	for _, key := range headerKeys {
@@ -58,10 +58,12 @@ func extractToken(c *gin.Context, name string) string {
 			return token
 		}
 	}
-	// 3. 尝试从Cookie获取
-	if token, err := c.Cookie(name); err == nil {
-		if token = strings.TrimSpace(token); token != "" {
-			return token
+	if allowCookie {
+		// 3. 尝试从Cookie获取
+		if token, err := c.Cookie(name); err == nil {
+			if token = strings.TrimSpace(token); token != "" {
+				return token
+			}
 		}
 	}
 	return ""

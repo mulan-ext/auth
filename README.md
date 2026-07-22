@@ -92,6 +92,17 @@ OIDC 回调会验证 issuer、audience、签名、有效期和 nonce。启用 `F
 
 ## Session Store
 
+纯 API 服务应使用 Header-only Session，禁止浏览器 Cookie 作为环境凭据：
+
+```go
+middleware, err := session.Init(&session.Config{
+	Driver:     "memory",
+	HeaderOnly: true,
+})
+```
+
+该模式仅从 Header/Bearer Token 提取 Session，并且不写入 `Set-Cookie`。
+
 - [x] Memory
 - [x] Filesystem
 - [x] Redis
